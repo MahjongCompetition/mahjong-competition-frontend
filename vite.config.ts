@@ -44,17 +44,17 @@ export default defineConfig(({ command, mode }) => {
           secure: false, // 如果是 https 接口，需要配置这个参数
           rewrite: (path) => path.replace(/^\/api/, '/api'), // 路径重写，保持 /api 前缀
           // 如果需要调试，可以添加以下配置
-          configure: (proxy, options) => {
-            proxy.on('error', (err, req, res) => {
-              console.log('proxy error', err);
-            });
-            proxy.on('proxyReq', (proxyReq, req, res) => {
-              console.log('Sending Request to the Target:', req.method, req.url);
-            });
-            proxy.on('proxyRes', (proxyRes, req, res) => {
-              console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
-            });
-          },
+          // configure: (proxy, options) => {
+          //   proxy.on('error', (err, req, res) => {
+          //     console.log('proxy error', err);
+          //   });
+          //   proxy.on('proxyReq', (proxyReq, req, res) => {
+          //     console.log('Sending Request to the Target:', req.method, req.url);
+          //   });
+          //   proxy.on('proxyRes', (proxyRes, req, res) => {
+          //     console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
+          //   });
+          // },
         },
         // 如果需要代理其他路径，可以添加更多配置
         // '/other-api': {
