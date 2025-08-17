@@ -81,10 +81,11 @@
                     查看详情
                   </n-button>
                   <n-button 
-                    v-if="!competition.registrationClosed && authStore.isLoggedIn"
-                    @click="registerCompetition(competition)"
+                    v-if="!competition.registrationClosed"
+                    type="info"
+                    @click="viewCompetition(competition.id)"
                   >
-                    立即报名
+                    {{ competition.competitionType === 'TEAM' ? '团队报名' : '个人报名' }}
                   </n-button>
                 </n-space>
               </template>
@@ -102,6 +103,8 @@
         </n-empty>
       </n-spin>
     </div>
+
+
   </div>
 </template>
 
@@ -181,17 +184,7 @@ const viewCompetition = (id: number) => {
   router.push(`/competition/${id}`)
 }
 
-// 报名比赛
-const registerCompetition = (competition: Competition) => {
-  if (!authStore.isLoggedIn) {
-    message.warning('请先登录')
-    router.push('/login')
-    return
-  }
-  
-  // 这里应该跳转到报名页面或显示报名对话框
-  message.info(`报名功能开发中，比赛：${competition.competitionName}`)
-}
+
 
 // 格式化日期
 const formatDate = (dateString: string) => {

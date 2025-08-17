@@ -61,19 +61,19 @@
               </div>
               <div class="info-item">
                 <label>报名开始：</label>
-                <span>{{ formatDate(competition?.registrationStartTime) }}</span>
+                <span>{{ competition?.registrationStartTime ? formatDate(competition.registrationStartTime) : '未设置' }}</span>
               </div>
               <div class="info-item">
                 <label>报名截止：</label>
-                <span>{{ formatDate(competition?.registrationDeadline) }}</span>
+                <span>{{ competition?.registrationDeadline ? formatDate(competition.registrationDeadline) : '未设置' }}</span>
               </div>
               <div class="info-item">
                 <label>比赛开始：</label>
-                <span>{{ formatDate(competition?.startTime) }}</span>
+                <span>{{ competition?.startTime ? formatDate(competition.startTime) : '未设置' }}</span>
               </div>
               <div class="info-item">
                 <label>比赛结束：</label>
-                <span>{{ formatDate(competition?.endTime) }}</span>
+                <span>{{ competition?.endTime ? formatDate(competition.endTime) : '未设置' }}</span>
               </div>
             </n-space>
           </n-card>
@@ -130,15 +130,28 @@
           
           <div class="registration-actions">
             <n-space>
+              <!-- 个人赛报名按钮 -->
               <n-button 
-                v-if="!competition?.registrationClosed && !isRegistered"
+                v-if="competition?.competitionType === 'INDIVIDUAL' && !competition?.registrationClosed && !isRegistered"
                 type="primary" 
                 size="large"
                 @click="showRegistrationModal = true"
                 :disabled="!authStore.isLoggedIn"
               >
-                立即报名
+                个人报名
               </n-button>
+              
+              <!-- 团队赛报名按钮 -->
+              <n-button 
+                v-if="competition?.competitionType === 'TEAM' && !competition?.registrationClosed && !isRegistered"
+                type="primary" 
+                size="large"
+                @click="openTeamRegistrationModal"
+                :disabled="!authStore.isLoggedIn"
+              >
+                团队报名
+              </n-button>
+              
               <n-button 
                 v-if="!competition?.registrationClosed && !isRegistered && !authStore.isLoggedIn"
                 type="info" 
@@ -236,20 +249,21 @@
       </n-card>
     </div>
 
-    <!-- 报名对话框 -->
-    <n-modal v-model:show="showRegistrationModal" preset="card" title="比赛报名" style="width: 500px">
+    <!-- 个人报名对话框 -->
+    <n-modal v-model:show="showRegistrationModal" preset="card" title="个人报名" style="width: 500px" v-if="competition?.competitionType === 'INDIVIDUAL'">
       <div class="registration-form">
         <n-alert 
           type="info" 
-          title="报名须知" 
+          title="个人报名须知" 
           :show-icon="false"
           style="margin-bottom: 16px"
         >
-          <p>请确认以下信息无误后提交报名：</p>
+          <p>请确认以下信息无误后提交个人报名：</p>
           <ul>
             <li>比赛名称：{{ competition?.competitionName }}</li>
-            <li>比赛类型：{{ competition?.competitionType === 'TEAM' ? '团队赛' : '个人赛' }}</li>
-            <li>比赛时间：{{ formatDate(competition?.startTime) }}</li>
+            <li>比赛类型：个人赛</li>
+            <li>比赛时间：{{ competition?.startTime ? formatDate(competition.startTime) : '未设置' }}</li>
+            <li>注意：个人赛只能以个人身份参与</li>
           </ul>
         </n-alert>
         
@@ -262,7 +276,7 @@
         >
           <n-form-item label="确认报名" path="confirmed">
             <n-checkbox v-model:checked="registrationForm.confirmed">
-              我已阅读并同意比赛规则，确认报名参加此比赛
+              我已阅读并同意比赛规则，确认个人报名参加此比赛
             </n-checkbox>
           </n-form-item>
         </n-form>
@@ -274,13 +288,104 @@
           <n-button 
             type="primary" 
             :loading="registrationLoading" 
-            @click="handleRegistration"
+            @click="handleIndividualRegistration"
             :disabled="!registrationForm.confirmed"
           >
-            确认报名
+            确认个人报名
           </n-button>
         </n-space>
       </template>
+    </n-modal>
+
+    <!-- 团队报名对话框 -->
+    <n-modal v-model:show="showTeamRegistrationModal" preset="card" title="团队报名" style="width: 700px" v-if="competition?.competitionType === 'TEAM'">
+      <div class="team-registration-form">
+        <n-alert 
+          type="info" 
+          title="团队报名须知" 
+          :show-icon="false"
+          style="margin-bottom: 16px"
+        >
+          <p>请确认以下信息无误后选择团队报名：</p>
+          <ul>
+            <li>比赛名称：{{ competition?.competitionName }}</li>
+            <li>比赛类型：团队赛</li>
+            <li>比赛时间：{{ competition?.startTime ? formatDate(competition.startTime) : '未设置' }}</li>
+            <li>注意：只有队长可以代表团队报名</li>
+          </ul>
+        </n-alert>
+        
+        <n-divider />
+        
+        <div class="my-teams-section">
+          <h4>选择要报名的团队</h4>
+          <n-spin :show="teamsLoading">
+            <n-grid :cols="1" :y-gap="12">
+              <n-grid-item v-for="team in myTeams" :key="team.id">
+                <n-card size="small" :class="{ 'selectable-team': team.createdByMe }">
+                  <template #header>
+                    <n-space align="center" justify="space-between">
+                      <div class="team-header-info">
+                        <span class="team-name">{{ team.name }}</span>
+                        <n-tag size="small" type="warning">{{ team.code }}</n-tag>
+                      </div>
+                      <n-tag :type="team.createdByMe ? 'success' : 'info'" size="small">
+                        {{ team.createdByMe ? '队长' : '队员' }}
+                      </n-tag>
+                    </n-space>
+                  </template>
+                  
+                  <div class="team-detail">
+                    <p>队长：{{ team.captainName }}</p>
+                    <p class="team-desc">{{ team.description || '暂无描述' }}</p>
+                  </div>
+                  
+                  <template #footer>
+                    <n-space justify="end">
+                      <n-button 
+                        v-if="team.createdByMe"
+                        type="primary" 
+                        size="small"
+                        :loading="registrationLoading"
+                        @click="handleTeamRegistration(team)"
+                      >
+                        选择此团队报名
+                      </n-button>
+                      <n-button 
+                        v-else
+                        size="small"
+                        disabled
+                      >
+                        仅队长可报名
+                      </n-button>
+                    </n-space>
+                  </template>
+                </n-card>
+              </n-grid-item>
+              
+              <n-grid-item v-if="myTeams.length === 0">
+                <n-empty description="您还没有加入任何团队">
+                  <template #extra>
+                    <n-button type="primary" @click="goToTeamsPage">
+                      去创建团队
+                    </n-button>
+                  </template>
+                </n-empty>
+              </n-grid-item>
+              
+              <n-grid-item v-if="myTeams.filter(t => t.createdByMe).length === 0 && myTeams.length > 0">
+                <n-empty description="您不是任何团队的队长">
+                  <template #extra>
+                    <n-button type="primary" @click="goToTeamsPage">
+                      去创建团队
+                    </n-button>
+                  </template>
+                </n-empty>
+              </n-grid-item>
+            </n-grid>
+          </n-spin>
+        </div>
+      </div>
     </n-modal>
   </div>
 </template>
@@ -291,7 +396,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useMessage } from 'naive-ui'
 import { useAuthStore } from '@/stores/auth'
 import { competitionApi } from '@/api/competition'
+import { registrationApi } from '@/api/registration'
+import { playerTeamsApi } from '@/api/teams'
 import type { Competition } from '@/api/competition'
+import type { TeamInfo } from '@/api/teams'
 import { 
   ArrowBack, 
   People 
@@ -306,7 +414,12 @@ const authStore = useAuthStore()
 const loading = ref(false)
 const competition = ref<Competition | null>(null)
 const showRegistrationModal = ref(false)
+const showTeamRegistrationModal = ref(false)
 const registrationLoading = ref(false)
+const teamsLoading = ref(false)
+
+// 团队相关数据
+const myTeams = ref<TeamInfo[]>([])
 
 // 表单引用
 const registrationFormRef = ref()
@@ -409,42 +522,92 @@ const loadCompetitionDetail = async () => {
   }
 }
 
-// 处理报名
-const handleRegistration = async () => {
+// 处理个人报名
+const handleIndividualRegistration = async () => {
   try {
     await registrationFormRef.value?.validate()
     
     registrationLoading.value = true
     
-    // 这里应该调用实际的API来提交报名
-    // 目前使用模拟数据
-    if (competition.value?.competitionType === 'TEAM') {
-      // 团队赛报名逻辑
-      message.info('团队赛报名功能开发中，请联系管理员')
-    } else {
-      // 个人赛报名
-      const newParticipant = {
-        id: Date.now(),
-        username: authStore.currentUser?.username || '',
-        nickname: authStore.currentUser?.nickname || '',
-        qq: authStore.currentUser?.qq || '',
-        mahjongId: authStore.currentUser?.mahjongId || '',
-        registrationTime: new Date().toISOString()
-      }
-      
-      individualParticipants.value.push(newParticipant)
-      message.success('报名成功！')
+    if (!competition.value) {
+      throw new Error('比赛信息不存在')
     }
     
+    const request = {
+      competitionId: competition.value.id
+    }
+    
+    await registrationApi.registerPlayer(request)
+    
+    message.success('个人报名成功！')
     showRegistrationModal.value = false
     registrationForm.confirmed = false
     
+    // 重新加载比赛详情以获取最新的报名状态
+    await loadCompetitionDetail()
+    
   } catch (error: any) {
-    console.error('报名失败:', error)
-    message.error(error.message || '报名失败')
+    console.error('个人报名失败:', error)
+    message.error(error.message || '个人报名失败')
   } finally {
     registrationLoading.value = false
   }
+}
+
+// 处理团队报名
+const handleTeamRegistration = async (team: TeamInfo) => {
+  try {
+    registrationLoading.value = true
+    
+    if (!competition.value) {
+      throw new Error('比赛信息不存在')
+    }
+    
+    const request = {
+      competitionId: competition.value.id,
+      teamId: team.id
+    }
+    
+    await registrationApi.registerTeam(request)
+    
+    message.success(`团队 ${team.name} 报名成功！`)
+    showTeamRegistrationModal.value = false
+    
+    // 重新加载比赛详情以获取最新的报名状态
+    await loadCompetitionDetail()
+    
+  } catch (error: any) {
+    console.error('团队报名失败:', error)
+    message.error(error.message || '团队报名失败')
+  } finally {
+    registrationLoading.value = false
+  }
+}
+
+// 加载我的团队（团队赛报名时使用）
+const loadMyTeams = async () => {
+  try {
+    teamsLoading.value = true
+    const response = await playerTeamsApi.getMyTeams()
+    myTeams.value = response.teams
+  } catch (error) {
+    console.error('加载团队失败:', error)
+    message.error('加载团队失败')
+  } finally {
+    teamsLoading.value = false
+  }
+}
+
+// 打开团队报名对话框
+const openTeamRegistrationModal = async () => {
+  showTeamRegistrationModal.value = true
+  await loadMyTeams()
+}
+
+// 跳转到团队页面
+const goToTeamsPage = () => {
+  showTeamRegistrationModal.value = false
+  router.push('/teams')
 }
 
 // 获取进度条颜色
@@ -570,5 +733,42 @@ onMounted(() => {
 
 .registration-form {
   padding: 16px 0;
+}
+
+/* 团队报名对话框样式 */
+.team-registration-form {
+  padding: 16px 0;
+}
+
+.my-teams-section h4 {
+  margin: 0 0 16px 0;
+  color: #333;
+  font-size: 16px;
+}
+
+.selectable-team {
+  border: 2px solid #18a058;
+}
+
+.team-header-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.team-name {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.team-detail p {
+  margin: 0 0 8px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.team-desc {
+  color: #999 !important;
+  font-style: italic;
 }
 </style>

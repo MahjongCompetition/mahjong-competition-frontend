@@ -65,6 +65,32 @@ export interface ApiResponse<T = any> {
   data: T
 }
 
+// 用户登录响应类型
+export interface UserLoginResponse {
+  user: {
+    id: number
+    username: string
+    nickname: string
+    qq: string
+    mahjongId: string
+    mahjongNickname: string
+    isActive: boolean
+    lastLoginTime: string
+    createdAt: string
+    updatedAt: string
+  }
+  token: string
+}
+
+// 管理员登录响应类型
+export interface AdminLoginResponse {
+  token: string
+  username: string
+  name: string
+  role: string
+  email: string
+}
+
 // 分页响应类型
 export interface PageResponse<T> {
   content: T[]
